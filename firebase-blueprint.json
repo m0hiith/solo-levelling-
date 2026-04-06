@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Player profile and progression stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer" },
+        "rank": { "type": "string", "enum": ["E", "D", "C", "B", "A", "S"] },
+        "streak": { "type": "integer" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "shadows": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "level", "xp", "rank", "streak"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Daily or weekly productivity task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["daily", "weekly"] },
+        "xpReward": { "type": "integer" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "type", "xpReward", "completed"]
+    },
+    "GymLog": {
+      "title": "GymLog",
+      "description": "Workout session record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "exercise": { "type": "string" },
+        "sets": { "type": "integer" },
+        "reps": { "type": "integer" },
+        "weight": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "exercise", "sets", "reps", "weight", "timestamp"]
+    },
+    "FuelLog": {
+      "title": "FuelLog",
+      "description": "Calorie and macro intake record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "food": { "type": "string" },
+        "calories": { "type": "integer" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "food", "calories", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "User tasks"
+    },
+    "/users/{userId}/gym_logs/{logId}": {
+      "schema": "GymLog",
+      "description": "User gym logs"
+    },
+    "/users/{userId}/fuel_logs/{logId}": {
+      "schema": "FuelLog",
+      "description": "User fuel logs"
+    }
+  }
+}

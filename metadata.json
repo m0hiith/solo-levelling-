@@ -1,0 +1,7 @@
+{
+  "name": "Solo Leveling: System HUD",
+  "description": "A gamified productivity app inspired by Solo Leveling with RPG progression, AI coaching, and quest tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
