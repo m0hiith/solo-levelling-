@@ -1,67 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserProfile, Task } from '../types';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, increment } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Plus, Trash2, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
+import { getTasks, addTask, updateTask, deleteTask as removeTask, saveProfile } from '../store';
+import { Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface TasksProps {
   profile: UserProfile | null;
+  setProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
 }
 
-export function Tasks({ profile }: TasksProps) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+export function Tasks({ profile, setProfile }: TasksProps) {
+  const [tasks, setTasks] = useState<Task[]>(getTasks);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskType, setNewTaskType] = useState<'daily' | 'weekly'>('daily');
 
-  useEffect(() => {
-    if (!profile) return;
-    const q = query(collection(db, 'users', profile.uid, 'tasks'), where('userId', '==', profile.uid));
-    return onSnapshot(q, (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-    });
-  }, [profile]);
+  const refreshTasks = () => setTasks(getTasks());
 
-  const addTask = async (e: React.FormEvent) => {
+  const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !newTaskTitle.trim()) return;
 
     const xpReward = newTaskType === 'daily' ? 100 : 500;
-    await addDoc(collection(db, 'users', profile.uid, 'tasks'), {
-      userId: profile.uid,
+    addTask({
       title: newTaskTitle,
       type: newTaskType,
       xpReward,
       completed: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     });
     setNewTaskTitle('');
+    refreshTasks();
   };
 
-  const toggleTask = async (task: Task) => {
+  const toggleTask = (task: Task) => {
     if (!profile) return;
-    const taskRef = doc(db, 'users', profile.uid, 'tasks', task.id);
-    const userRef = doc(db, 'users', profile.uid);
+    const wasCompleted = task.completed;
+    updateTask(task.id, { completed: !wasCompleted });
 
-    await updateDoc(taskRef, { completed: !task.completed });
-    
-    if (!task.completed) {
-      // Add XP
-      await updateDoc(userRef, { 
-        xp: increment(task.xpReward)
-      });
-      // Handle level up logic here in a real app
-    } else {
-      // Subtract XP if un-completing
-      await updateDoc(userRef, { 
-        xp: increment(-task.xpReward)
-      });
-    }
+    const xpDelta = wasCompleted ? -task.xpReward : task.xpReward;
+    setProfile(prev => {
+      const updated = { ...prev, xp: Math.max(0, prev.xp + xpDelta) };
+      saveProfile(updated);
+      return updated;
+    });
+    refreshTasks();
   };
 
-  const deleteTask = async (taskId: string) => {
-    if (!profile) return;
-    await deleteDoc(doc(db, 'users', profile.uid, 'tasks', taskId));
+  const handleDelete = (taskId: string) => {
+    removeTask(taskId);
+    refreshTasks();
   };
 
   return (
@@ -74,7 +61,7 @@ export function Tasks({ profile }: TasksProps) {
       </header>
 
       {/* Add Task Form */}
-      <form onSubmit={addTask} className="bg-surface p-6 border border-white/5 flex flex-col md:flex-row gap-4">
+      <form onSubmit={handleAddTask} className="bg-surface p-6 border border-white/5 flex flex-col md:flex-row gap-4">
         <input
           type="text"
           value={newTaskTitle}
@@ -117,7 +104,7 @@ export function Tasks({ profile }: TasksProps) {
                       <h3 className={`font-headline text-lg ${task.completed ? 'text-outline line-through' : 'text-on-surface'}`}>{task.title}</h3>
                       <p className="text-[10px] text-outline mt-1 uppercase tracking-widest">REWARD: +{task.xpReward} XP</p>
                     </div>
-                    <button onClick={() => deleteTask(task.id)} className="text-outline hover:text-error transition-colors">
+                    <button onClick={() => handleDelete(task.id)} className="text-outline hover:text-error transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -145,7 +132,7 @@ export function Tasks({ profile }: TasksProps) {
                     <h3 className={`font-headline text-lg ${task.completed ? 'text-outline line-through' : 'text-on-surface'}`}>{task.title}</h3>
                     <p className="text-[10px] text-outline mt-1 uppercase tracking-widest">REWARD: +{task.xpReward} XP</p>
                   </div>
-                  <button onClick={() => deleteTask(task.id)} className="text-outline hover:text-error transition-colors">
+                  <button onClick={() => handleDelete(task.id)} className="text-outline hover:text-error transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>

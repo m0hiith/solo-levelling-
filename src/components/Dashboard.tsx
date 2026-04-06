@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { UserProfile, Task } from '../types';
-import { collection, query, where, onSnapshot, limit, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import React from 'react';
+import { UserProfile } from '../types';
+import { getTasks } from '../store';
 import { motion } from 'motion/react';
 import { Flame, Trophy, Zap, ChevronRight, Terminal } from 'lucide-react';
 
@@ -10,23 +9,15 @@ interface DashboardProps {
 }
 
 export function Dashboard({ profile }: DashboardProps) {
-  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
-
-  useEffect(() => {
-    if (!profile) return;
-    const q = query(
-      collection(db, 'users', profile.uid, 'tasks'),
-      orderBy('createdAt', 'desc'),
-      limit(4)
-    );
-    return onSnapshot(q, (snapshot) => {
-      setRecentTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-    });
-  }, [profile]);
-
   if (!profile) return null;
 
-  const xpProgress = (profile.xp % 1000) / 10; // Simple XP logic for MVP
+  // Get 4 most recent tasks from localStorage
+  const allTasks = getTasks();
+  const recentTasks = [...allTasks]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
+
+  const xpProgress = (profile.xp % 1000) / 10;
 
   return (
     <div className="space-y-12">

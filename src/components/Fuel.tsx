@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserProfile, FuelLog } from '../types';
-import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { getFuelLogs, addFuelLog } from '../store';
 import { detectCalories } from '../services/gemini';
-import { Camera, Flame, Plus, Loader2, History } from 'lucide-react';
+import { Camera, Plus, Loader2, History } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface FuelProps {
@@ -11,36 +10,26 @@ interface FuelProps {
 }
 
 export function Fuel({ profile }: FuelProps) {
-  const [logs, setLogs] = useState<FuelLog[]>([]);
+  const [logs, setLogs] = useState<FuelLog[]>(() => getFuelLogs().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [food, setFood] = useState('');
   const [calories, setCalories] = useState('');
 
-  useEffect(() => {
-    if (!profile) return;
-    const q = query(
-      collection(db, 'users', profile.uid, 'fuel_logs'),
-      orderBy('timestamp', 'desc'),
-      limit(10)
-    );
-    return onSnapshot(q, (snapshot) => {
-      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FuelLog)));
-    });
-  }, [profile]);
+  const refreshLogs = () => setLogs(getFuelLogs().slice(0, 10));
 
-  const addLog = async (e: React.FormEvent) => {
+  const addLog = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !food || !calories) return;
 
-    await addDoc(collection(db, 'users', profile.uid, 'fuel_logs'), {
-      userId: profile.uid,
+    addFuelLog({
       food,
       calories: parseInt(calories),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     setFood('');
     setCalories('');
+    refreshLogs();
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,15 +43,15 @@ export function Fuel({ profile }: FuelProps) {
       try {
         const result = await detectCalories(base64);
         if (result.food) {
-          await addDoc(collection(db, 'users', profile.uid, 'fuel_logs'), {
-            userId: profile.uid,
+          addFuelLog({
             food: result.food,
             calories: result.calories,
             protein: result.protein,
             carbs: result.carbs,
             fat: result.fat,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
+          refreshLogs();
         }
       } catch (error) {
         console.error("AI detection failed:", error);

@@ -3,12 +3,10 @@ import { UserProfile } from '../types';
 import { 
   LayoutDashboard, 
   CheckSquare, 
-  TrendingUp, 
   Dumbbell, 
   Flame, 
   Users, 
-  Bot, 
-  LogOut, 
+  Bot,
   Bell, 
   Settings 
 } from 'lucide-react';
@@ -19,10 +17,9 @@ interface LayoutProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   profile: UserProfile | null;
-  onLogout: () => void;
 }
 
-export function Layout({ children, activeTab, onTabChange, profile, onLogout }: LayoutProps) {
+export function Layout({ children, activeTab, onTabChange, profile }: LayoutProps) {
   const navItems = [
     { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
     { id: 'tasks', label: 'TASKS', icon: CheckSquare },
@@ -51,13 +48,13 @@ export function Layout({ children, activeTab, onTabChange, profile, onLogout }: 
               <div className="text-[10px] font-headline font-bold text-primary tracking-widest uppercase">RANK {profile?.rank}</div>
               <div className="text-xs font-bold">LVL {profile?.level}</div>
             </div>
-            <button onClick={onLogout} className="w-10 h-10 border border-primary/20 p-0.5 hover:border-primary transition-all">
+            <div className="w-10 h-10 border border-primary/20 p-0.5">
               <img 
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.uid}`} 
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=player`} 
                 alt="Avatar" 
                 className="w-full h-full object-cover bg-surface"
               />
-            </button>
+            </div>
           </div>
         </div>
       </header>
@@ -86,15 +83,6 @@ export function Layout({ children, activeTab, onTabChange, profile, onLogout }: 
             </button>
           ))}
         </nav>
-        <div className="p-6">
-          <button 
-            onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 text-outline hover:text-error transition-colors text-xs font-headline tracking-widest"
-          >
-            <LogOut className="w-4 h-4" />
-            LOGOUT
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserProfile, GymLog } from '../types';
-import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Dumbbell, TrendingUp, Activity, Plus, History } from 'lucide-react';
+import { getGymLogs, addGymLog } from '../store';
+import { Dumbbell, TrendingUp, Plus, History } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface GymProps {
@@ -10,42 +9,32 @@ interface GymProps {
 }
 
 export function Gym({ profile }: GymProps) {
-  const [logs, setLogs] = useState<GymLog[]>([]);
+  const [logs, setLogs] = useState<GymLog[]>(() => getGymLogs().slice(0, 10));
   const [exercise, setExercise] = useState('');
   const [sets, setSets] = useState('');
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
 
-  useEffect(() => {
-    if (!profile) return;
-    const q = query(
-      collection(db, 'users', profile.uid, 'gym_logs'),
-      orderBy('timestamp', 'desc'),
-      limit(10)
-    );
-    return onSnapshot(q, (snapshot) => {
-      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GymLog)));
-    });
-  }, [profile]);
-
-  const addLog = async (e: React.FormEvent) => {
+  const addLog = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !exercise || !sets || !reps || !weight) return;
 
-    await addDoc(collection(db, 'users', profile.uid, 'gym_logs'), {
-      userId: profile.uid,
+    addGymLog({
       exercise,
       sets: parseInt(sets),
       reps: parseInt(reps),
       weight: parseFloat(weight),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     setExercise('');
     setSets('');
     setReps('');
     setWeight('');
+    setLogs(getGymLogs().slice(0, 10));
   };
+
+  const totalVolume = logs.reduce((acc, log) => acc + log.sets * log.reps * log.weight, 0);
 
   return (
     <div className="space-y-12">
@@ -104,10 +93,10 @@ export function Gym({ profile }: GymProps) {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] text-outline uppercase tracking-widest">Total Volume</span>
-                <span className="text-xl font-headline font-bold text-on-surface">14,250 KG</span>
+                <span className="text-xl font-headline font-bold text-on-surface">{totalVolume.toLocaleString()} KG</span>
               </div>
               <div className="h-1 w-full bg-background relative">
-                <div className="absolute h-full bg-secondary shadow-[0_0_10px_#00f1fd]" style={{ width: '82%' }} />
+                <div className="absolute h-full bg-secondary shadow-[0_0_10px_#00f1fd]" style={{ width: `${Math.min((totalVolume / 20000) * 100, 100)}%` }} />
               </div>
             </div>
           </div>
