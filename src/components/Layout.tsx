@@ -1,34 +1,37 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  Dumbbell, 
-  Flame, 
-  Users, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  Dumbbell,
+  Flame,
+  Users,
   Bot,
-  Bell, 
-  Settings 
+  ScrollText,
+  Settings,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Avatar } from './Avatar';
 
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  profile: UserProfile | null;
+  profile: UserProfile;
+  onOpenSettings: () => void;
 }
 
-export function Layout({ children, activeTab, onTabChange, profile }: LayoutProps) {
-  const navItems = [
-    { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
-    { id: 'tasks', label: 'TASKS', icon: CheckSquare },
-    { id: 'gym', label: 'GYM', icon: Dumbbell },
-    { id: 'fuel', label: 'FUEL', icon: Flame },
-    { id: 'shadows', label: 'SHADOWS', icon: Users },
-    { id: 'coach', label: 'COACH', icon: Bot },
-  ];
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
+  { id: 'tasks', label: 'TASKS', icon: CheckSquare },
+  { id: 'gym', label: 'GYM', icon: Dumbbell },
+  { id: 'fuel', label: 'FUEL', icon: Flame },
+  { id: 'shadows', label: 'SHADOWS', icon: Users },
+  { id: 'coach', label: 'COACH', icon: Bot },
+  { id: 'logs', label: 'LOGS', icon: ScrollText },
+];
 
+export function Layout({ children, activeTab, onTabChange, profile, onOpenSettings }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background text-on-surface font-sans selection:bg-primary/30">
       {/* Top Bar */}
@@ -37,45 +40,55 @@ export function Layout({ children, activeTab, onTabChange, profile }: LayoutProp
           SYSTEM HUD
         </div>
         <div className="flex items-center gap-6">
-          <button className="text-outline hover:text-secondary transition-colors">
-            <Bell className="w-5 h-5" />
-          </button>
-          <button className="text-outline hover:text-secondary transition-colors">
+          <button
+            onClick={onOpenSettings}
+            aria-label="Open profile settings"
+            className="text-outline hover:text-secondary transition-colors"
+          >
             <Settings className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-3">
+          <button
+            onClick={onOpenSettings}
+            aria-label="Edit profile"
+            className="flex items-center gap-3 group"
+          >
             <div className="text-right hidden sm:block">
-              <div className="text-[10px] font-headline font-bold text-primary tracking-widest uppercase">RANK {profile?.rank}</div>
-              <div className="text-xs font-bold">LVL {profile?.level}</div>
+              <div className="text-[10px] font-headline font-bold text-primary tracking-widest uppercase">
+                RANK {profile.rank}
+              </div>
+              <div className="text-xs font-bold">LVL {profile.level}</div>
             </div>
-            <div className="w-10 h-10 border border-primary/20 p-0.5">
-              <img 
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=player`} 
-                alt="Avatar" 
-                className="w-full h-full object-cover bg-surface"
-              />
+            <div className="w-10 h-10 border border-primary/20 p-0.5 group-hover:border-primary/60 transition-colors">
+              <Avatar avatar={profile.avatar} displayName={profile.displayName} className="text-xs" />
             </div>
-          </div>
+          </button>
         </div>
       </header>
 
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col h-full fixed left-0 top-0 pt-20 bg-neutral-950/80 backdrop-blur-2xl w-64 border-r border-white/5">
         <div className="px-8 py-6 mb-4">
-          <div className="text-primary font-black font-headline tracking-widest text-[10px] uppercase opacity-60">MONARCH RANK PROFILE</div>
-          <div className="text-secondary font-headline font-bold text-lg tracking-tight uppercase">{profile?.rank}-RANK PLAYER</div>
-          <div className="text-outline font-label text-[10px] tracking-widest uppercase">SYSTEM ACTIVE</div>
+          <div className="text-primary font-black font-headline tracking-widest text-[10px] uppercase opacity-60">
+            MONARCH RANK PROFILE
+          </div>
+          <div className="text-secondary font-headline font-bold text-lg tracking-tight uppercase truncate">
+            {profile.displayName}
+          </div>
+          <div className="text-outline font-label text-[10px] tracking-widest uppercase">
+            {profile.rank}-RANK · SYSTEM ACTIVE
+          </div>
         </div>
         <nav className="flex-1">
-          {navItems.map((item) => (
+          {NAV_ITEMS.map(item => (
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
+              aria-current={activeTab === item.id ? 'page' : undefined}
               className={cn(
-                "w-full flex items-center px-8 py-4 font-headline tracking-widest text-xs transition-all",
-                activeTab === item.id 
-                  ? "text-secondary border-l-2 border-secondary bg-secondary/5" 
-                  : "text-outline hover:bg-white/5 hover:text-primary"
+                'w-full flex items-center px-8 py-4 font-headline tracking-widest text-xs transition-all',
+                activeTab === item.id
+                  ? 'text-secondary border-l-2 border-secondary bg-secondary/5'
+                  : 'text-outline hover:bg-white/5 hover:text-primary',
               )}
             >
               <item.icon className="w-4 h-4 mr-3" />
@@ -86,23 +99,26 @@ export function Layout({ children, activeTab, onTabChange, profile }: LayoutProp
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 pt-24 pb-24 px-6 md:px-12 max-w-7xl mx-auto">
-        {children}
-      </main>
+      <main className="lg:ml-64 pt-24 pb-28 px-6 md:px-12 max-w-7xl mx-auto">{children}</main>
 
       {/* Mobile Nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-neutral-950/90 backdrop-blur-lg border-t border-white/5">
-        {navItems.map((item) => (
+      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-1 pb-6 pt-2 bg-neutral-950/90 backdrop-blur-lg border-t border-white/5">
+        {NAV_ITEMS.map(item => (
           <button
             key={item.id}
             onClick={() => onTabChange(item.id)}
+            aria-current={activeTab === item.id ? 'page' : undefined}
             className={cn(
-              "flex flex-col items-center justify-center p-2 transition-all",
-              activeTab === item.id ? "text-secondary glow-secondary scale-110" : "text-outline opacity-60"
+              'flex flex-col items-center justify-center p-1.5 transition-all',
+              activeTab === item.id
+                ? 'text-secondary glow-secondary scale-110'
+                : 'text-outline opacity-60',
             )}
           >
             <item.icon className="w-5 h-5" />
-            <span className="font-headline font-bold text-[8px] tracking-widest uppercase mt-1">{item.label}</span>
+            <span className="font-headline font-bold text-[7px] tracking-widest uppercase mt-1">
+              {item.label}
+            </span>
           </button>
         ))}
       </nav>
