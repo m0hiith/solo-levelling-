@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { UserProfile } from '../types';
 import { logActivity } from '../store';
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 import { Shield, Sword, Ghost, Lock } from 'lucide-react';
 
 interface ShadowsProps {
@@ -106,7 +106,7 @@ export function Shadows({ profile, setProfile }: ShadowsProps) {
         {SHADOW_ROSTER.map(shadow => {
           const unlocked = unlockedIds.includes(shadow.id);
           return (
-            <motion.div
+            <m.div
               key={shadow.id}
               whileHover={{ scale: 1.02 }}
               className={`group relative bg-surface border p-1 transition-all duration-500 overflow-hidden ${
@@ -138,7 +138,7 @@ export function Shadows({ profile, setProfile }: ShadowsProps) {
               {unlocked && (
                 <div className="absolute bottom-0 left-0 h-1 bg-primary w-full shadow-[0_0_15px_rgba(237,177,255,1)]" />
               )}
-            </motion.div>
+            </m.div>
           );
         })}
       </div>

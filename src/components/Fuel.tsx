@@ -3,7 +3,7 @@ import { FuelLog } from '../types';
 import { getFuelLogs, addFuelLog, filterToday } from '../store';
 import { detectCalories } from '../services/gemini';
 import { Camera, Plus, Loader2, History } from 'lucide-react';
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 
 const RECENT_LIMIT = 12;
 const DAILY_CALORIE_GOAL = 2500;
@@ -168,7 +168,7 @@ export function Fuel() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {recent.map(log => (
-            <motion.div
+            <m.div
               key={log.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -195,7 +195,7 @@ export function Fuel() {
                   </p>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
         {recent.length === 0 && (
