@@ -69,8 +69,9 @@ export const Layout = memo(function Layout({
     <div className="min-h-screen bg-background text-on-surface font-sans selection:bg-primary/30">
       {/* Top Bar */}
       <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 py-4 bg-neutral-950/70 backdrop-blur-xl border-b border-white/5">
-        <div className="text-xl font-headline font-bold tracking-tighter text-primary glow-primary uppercase">
-          SYSTEM HUD
+        <div className="text-xl font-headline font-bold tracking-tighter uppercase">
+          <span className="text-on-surface">SOLO</span>{' '}
+          <span className="text-primary glow-primary">LEVELING</span>
         </div>
         <div className="flex items-center gap-4 sm:gap-6">
           <button

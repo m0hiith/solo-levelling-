@@ -51,10 +51,14 @@ export function Login({ onSignedIn }: LoginProps) {
           <p className="text-secondary font-headline tracking-[0.4em] text-[10px] uppercase mb-3">
             Authentication Required
           </p>
-          <h1 className="font-headline font-black text-4xl tracking-tighter uppercase text-primary glow-primary">
-            SYSTEM HUD
+          <h1 className="font-headline font-black text-4xl sm:text-5xl tracking-tighter uppercase leading-none">
+            <span className="text-on-surface">SOLO</span>{' '}
+            <span className="text-primary glow-primary">LEVELING</span>
           </h1>
-          <p className="text-outline font-label text-[10px] tracking-widest uppercase mt-3">
+          <p className="text-secondary font-headline font-bold text-[10px] tracking-[0.5em] uppercase mt-4">
+            ARISE
+          </p>
+          <p className="text-outline font-label text-[10px] tracking-widest uppercase mt-2">
             Identify yourself, hunter.
           </p>
         </div>

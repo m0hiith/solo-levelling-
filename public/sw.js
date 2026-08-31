@@ -1,5 +1,5 @@
 /**
- * Notification host for the System HUD.
+ * Notification host for Solo Leveling.
  *
  * It exists for two reasons: Android Chrome refuses `new Notification()` and demands
  * `registration.showNotification`, and a worker can raise an alert while the tab is
