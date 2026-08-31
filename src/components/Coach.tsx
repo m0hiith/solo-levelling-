@@ -1,76 +1,137 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { UserProfile } from '../types';
-import { getAICoachMessage, isAiConfigured } from '../services/gemini';
-import { getTasks, logActivity } from '../store';
-import { motion, AnimatePresence } from 'motion/react';
-import { Bot, Loader2, Terminal, AlertCircle } from 'lucide-react';
+import { streamEvaluation, streamSystemReply } from '../services/gemini';
+import { ChatTurn, isAiConfigured } from '../lib/ai';
+import { buildSystemContext } from '../lib/context';
+import { logActivity } from '../store';
+import { m } from 'motion/react';
+import { AlertCircle, Bot, Loader2, Send, Terminal, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { cn } from '../lib/utils';
 
 interface CoachProps {
   profile: UserProfile;
+  userId: string;
 }
 
 interface Message {
   id: string;
+  role: 'user' | 'model';
   content: string;
 }
 
-export function Coach({ profile }: CoachProps) {
+/** One tap instead of typing, which is how this actually gets used on a phone. */
+const PROMPTS = [
+  'Evaluate my day so far.',
+  'Am I ahead or behind my partner?',
+  'Give me a workout for today.',
+  'I want to quit. Talk me out of it.',
+];
+
+export function Coach({ profile, userId }: CoachProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState('');
+  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const requested = useRef(false);
+  const opened = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const configured = useMemo(isAiConfigured, []);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, loading]);
+  }, [messages, streaming]);
 
-  const triggerSystemMessage = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Count what is actually outstanding rather than reporting a hardcoded zero.
-      const missedTasks = getTasks().filter(t => !t.completed).length;
-      const message = await getAICoachMessage({
-        level: profile.level,
-        rank: profile.rank,
-        streak: profile.streak,
-        missedTasks,
-      });
-      setMessages(prev => [...prev, { id: `${Date.now()}-${prev.length}`, content: message }]);
-      logActivity('system', 'System evaluation received from the AI Architect.');
-    } catch (err) {
-      console.error('[coach] evaluation failed', err);
-      setError(err instanceof Error ? err.message : 'The System could not be reached.');
-    } finally {
-      setLoading(false);
-    }
-  }, [profile.level, profile.rank, profile.streak]);
+  // Abort an in-flight stream when the tab is left, so its chunks cannot land on a
+  // dead component or bleed into the next conversation.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-  // Fetch one opening broadcast per mount. The ref guard stops StrictMode's
-  // double-invoked effect from firing two API calls in development.
+  /** Appends an empty model message, then fills it in as chunks arrive. */
+  const runStream = useCallback(
+    async (
+      history: ChatTurn[],
+      send: (onChunk: (text: string) => void, signal: AbortSignal) => Promise<string>,
+    ) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const id = `${Date.now()}-${history.length}`;
+      setStreaming(true);
+      setError(null);
+      setMessages(prev => [...prev, { id, role: 'model', content: '' }]);
+
+      try {
+        await send(chunk => {
+          setMessages(prev =>
+            prev.map(m => (m.id === id ? { ...m, content: m.content + chunk } : m)),
+          );
+        }, controller.signal);
+        logActivity('system', 'System evaluation received from the AI Architect.');
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error('[coach] stream failed', err);
+        setError(err instanceof Error ? err.message : 'The System could not be reached.');
+        setMessages(prev => prev.filter(m => m.id !== id));
+      } finally {
+        if (!controller.signal.aborted) setStreaming(false);
+      }
+    },
+    [],
+  );
+
+  const ask = useCallback(
+    (text: string) => {
+      const message = text.trim();
+      if (!message || streaming || !configured) return;
+
+      const history: ChatTurn[] = messages
+        .filter(m => m.content)
+        .map(m => ({ role: m.role, text: m.content }));
+
+      setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', content: message }]);
+      setInput('');
+
+      const ctx = buildSystemContext(profile, userId);
+      void runStream(history, (onChunk, signal) =>
+        streamSystemReply(ctx, history, message, onChunk, signal),
+      );
+    },
+    [configured, messages, profile, runStream, streaming, userId],
+  );
+
+  // One unprompted broadcast per mount. The ref guard stops StrictMode's
+  // double-invoked effect from firing two calls in development.
   useEffect(() => {
-    if (requested.current || !isAiConfigured()) return;
-    requested.current = true;
-    void triggerSystemMessage();
-  }, [triggerSystemMessage]);
+    if (opened.current || !configured) return;
+    opened.current = true;
+    const ctx = buildSystemContext(profile, userId);
+    void runStream([], (onChunk, signal) => streamEvaluation(ctx, onChunk, signal));
+    // Intentionally mount-only: a re-broadcast on every XP change would be noise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    ask(input);
+  };
 
   return (
     <div className="max-w-4xl mx-auto h-[calc(100vh-14rem)] flex flex-col">
-      <header className="mb-8 border-l-4 border-primary pl-4">
+      <header className="mb-6 border-l-4 border-primary pl-4">
         <h1 className="font-headline text-3xl font-bold uppercase tracking-tighter">
           AI <span className="text-primary">ARCHITECT</span>
         </h1>
         <p className="text-[10px] text-outline uppercase tracking-widest">
-          System Monitoring Active
+          Reads your pact, your streak and your partner's
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto space-y-6 pr-4 mb-6" ref={scrollRef}>
-        {!isAiConfigured() && (
+      <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4" ref={scrollRef}>
+        {!configured && (
           <div className="bg-surface border-l-2 border-error p-6 flex items-start gap-3">
             <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" />
             <div>
@@ -78,45 +139,58 @@ export function Coach({ profile }: CoachProps) {
                 Link Severed
               </p>
               <p className="text-sm text-outline">
-                No <code>GEMINI_API_KEY</code> is configured. Add it to{' '}
-                <code>.env.local</code> and restart the dev server to bring the Architect online.
+                No <code>GEMINI_API_KEY</code> is configured. Add it to <code>.env.local</code> and
+                restart the dev server to bring the Architect online. Everything else in the HUD —
+                quests, alerts, the pact grid — works without it.
               </p>
             </div>
           </div>
         )}
 
-        <AnimatePresence>
-          {messages.map(msg => (
-            <motion.div
+        {messages.map(msg =>
+          msg.role === 'user' ? (
+            <m.div
+              key={msg.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex justify-end"
+            >
+              <div className="max-w-[80%] p-4 bg-surface/60 border-r-2 border-secondary">
+                <div className="flex items-center gap-2 mb-1.5 text-secondary justify-end">
+                  <span className="text-[8px] font-headline font-bold uppercase tracking-widest">
+                    HUNTER
+                  </span>
+                  <User className="w-3 h-3" />
+                </div>
+                <p className="text-sm text-on-surface text-right">{msg.content}</p>
+              </div>
+            </m.div>
+          ) : (
+            <m.div
               key={msg.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex justify-start"
             >
-              <div className="max-w-[80%] p-6 bg-surface border-l-2 border-primary">
+              <div className="max-w-[85%] p-5 bg-surface border-l-2 border-primary">
                 <div className="flex items-center gap-2 mb-2 text-primary">
                   <Terminal className="w-3 h-3" />
                   <span className="text-[8px] font-headline font-bold uppercase tracking-widest">
                     SYSTEM BROADCAST
                   </span>
                 </div>
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
+                {msg.content ? (
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-headline text-outline uppercase animate-pulse">
+                    Decrypting System pulse…
+                  </span>
+                )}
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-surface p-4 border-l-2 border-primary flex items-center gap-3">
-              <Loader2 className="w-4 h-4 text-primary animate-spin" />
-              <span className="text-[10px] font-headline text-outline uppercase animate-pulse">
-                Decrypting System Pulse...
-              </span>
-            </div>
-          </div>
+            </m.div>
+          ),
         )}
 
         {error && (
@@ -131,16 +205,49 @@ export function Coach({ profile }: CoachProps) {
         )}
       </div>
 
-      <div className="bg-surface p-4 border border-white/5 flex gap-4">
+      {/* Prompt chips — only while the conversation is short enough to need them. */}
+      {configured && messages.length < 3 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {PROMPTS.map(prompt => (
+            <button
+              key={prompt}
+              onClick={() => ask(prompt)}
+              disabled={streaming}
+              className="border border-white/10 text-outline px-3 py-2 text-[10px] font-headline uppercase tracking-widest hover:text-secondary hover:border-secondary/40 transition-all disabled:opacity-40"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-surface p-3 border border-white/5 flex gap-3">
+        <input
+          type="text"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          disabled={!configured || streaming}
+          placeholder={configured ? 'ASK THE SYSTEM…' : 'ARCHITECT OFFLINE'}
+          aria-label="Message the System"
+          className="flex-1 bg-background border border-white/10 px-4 py-3 text-sm font-headline tracking-widest outline-none focus:border-primary transition-colors disabled:opacity-40"
+        />
         <button
-          onClick={triggerSystemMessage}
-          disabled={loading || !isAiConfigured()}
-          className="flex-1 bg-primary text-background py-4 font-headline font-bold uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit"
+          disabled={!configured || streaming || !input.trim()}
+          className={cn(
+            'bg-primary text-background px-6 font-headline font-bold uppercase tracking-widest',
+            'hover:brightness-110 transition-all flex items-center gap-2 disabled:opacity-40',
+          )}
         >
-          <Bot className="w-4 h-4" />
-          REQUEST SYSTEM EVALUATION
+          {streaming ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : messages.length === 0 ? (
+            <Bot className="w-4 h-4" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
         </button>
-      </div>
+      </form>
     </div>
   );
 }

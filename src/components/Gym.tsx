@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { GymLog } from '../types';
 import { getGymLogs, addGymLog } from '../store';
 import { TrendingUp, Plus, History } from 'lucide-react';
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 
 const RECENT_LIMIT = 10;
 /** Lifetime volume target the "progressive overload" bar fills toward. */
@@ -167,7 +167,7 @@ export function Gym() {
           </div>
           <div className="space-y-4">
             {recent.map(log => (
-              <motion.div
+              <m.div
                 key={log.id}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -198,7 +198,7 @@ export function Gym() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
             {recent.length === 0 && (
               <div className="text-center py-12 border border-dashed border-white/10">

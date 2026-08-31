@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { ActivityKind, ActivityLog } from '../types';
 import { clearActivityLogs, getActivityLogs } from '../store';
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 import {
   Activity,
   ArrowUpRight,
+  BellRing,
   CheckSquare,
   Dumbbell,
   Flame,
@@ -25,6 +26,7 @@ const KIND_META: Record<ActivityKind, { label: string; icon: typeof Zap; color: 
   fuel: { label: 'FUEL', icon: Flame, color: 'text-primary' },
   streak: { label: 'STREAK', icon: Activity, color: 'text-secondary' },
   profile: { label: 'PROFILE', icon: User, color: 'text-outline' },
+  alert: { label: 'ALERT', icon: BellRing, color: 'text-primary' },
   system: { label: 'SYSTEM', icon: Terminal, color: 'text-outline' },
 };
 
@@ -35,6 +37,7 @@ const FILTERS: { id: 'all' | ActivityKind; label: string }[] = [
   { id: 'level', label: 'PROGRESSION' },
   { id: 'gym', label: 'GYM' },
   { id: 'fuel', label: 'FUEL' },
+  { id: 'alert', label: 'ALERTS' },
 ];
 
 function dayLabel(iso: string): string {
@@ -162,7 +165,7 @@ export function Logs() {
                 const meta = KIND_META[log.kind] ?? KIND_META.system;
                 const Icon = meta.icon;
                 return (
-                  <motion.div
+                  <m.div
                     key={log.id}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -199,7 +202,7 @@ export function Logs() {
                         minute: '2-digit',
                       })}
                     </time>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </div>
